@@ -1,0 +1,10 @@
+[env]
+# CC = "/home/alec/graalvm-ce-java11-21.0.0.2/lib/llvm/bin/clang"
+# CFLAGS = "-lgraalvm-llvm -I/home/alec/graalvm-ce-java11-21.0.0.2/lib/llvm/include"
+# LLVM_TOOLCHAIN = "/home/alec/graalvm-ce-java11-21.0.0.2/lib/llvm"
+
+
+[target.x86_64-unknown-linux-gnu]
+linker = "/home/alec/graalvm-ce-java11-21.0.0.2/languages/llvm/native/bin/clang"
+ar = "/home/alec/graalvm-ce-java11-21.0.0.2/languages/llvm/native/bin/ar"
+rustflags = [ "-C", "link-args=-lgraalvm-llvm", "-Og", "--emit=llvm-bc"]

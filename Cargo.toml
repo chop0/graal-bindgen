@@ -1,0 +1,18 @@
+[package]
+name = "rustgraal"
+version = "0.1.0"
+authors = ["chop0 <chop@quenda.net>"]
+edition = "2018"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+cc = "1.0.67"
+bindgen = "0.58.1"
+
+[dependencies]
+syn-mid = "0.5.3"
+proc-macro2 = "1.0.26"
+concat-idents = "1.1.2"
+polyglot_macro = { path = "polyglot_macro" }
