@@ -1,4 +1,5 @@
-> Rust to Graal Polyglot binding generator using procedural macros.
+# `graal-bindgen` <!-- omit in toc -->
+## `graal-bindgen` generates safe bindings between Rust and Graal Polyglot. <!-- omit in toc -->
 - [Overview](#overview)
 - [Building](#building)
 - [Constructor stubs](#constructor-stubs)
