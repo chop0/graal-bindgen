@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
-use polyglot_macro::{java_constructor, java_method};
 use crate::types::jtypes::*;
+use polyglot_macro::{class, java_constructor};
 
-use crate::ruesti::{Pass, Receive, Value};
+use crate::ruesti::{JavaArray, Pass, Receive, Value};
 
 pub struct Object {
     ptr: *mut Value,
@@ -16,51 +16,42 @@ unsafe impl Receive for Object {
     }
 }
 
-pub struct ArrayList<E>
-where
-    E: Pass + Receive,
-{
+pub struct String {
     ptr: *mut Value,
-    phantom: PhantomData<E>,
 }
 
-impl<E> ArrayList<E>
-where
-    E: Pass + Receive,
-{
-    java_constructor! {
-        java.util.ArrayList<E> new_with_capacity(int initialCapacity);
-        java.util.ArrayList<E> new();
-    }
-    java_method! {
-        void trimToSize();
-        void ensureCapacity(int minCapacity);
-        int size();
-        boolean isEmpty();
-        boolean contains(Object o);
-        int indexOf(Object o);
-        int lastIndexOf(Object o);
-        Object clone();
-        E get(int index);
-        E set(int index, E element);
-        boolean add(E e);
-        void add_at(int index, E element);
-        E remove(int index);
-        boolean remove_value(Object o);
-        void clear();
-    }
-}
-
-unsafe impl<T> Receive for ArrayList<T>
-where
-    T: Pass + Receive,
-{
+unsafe impl Pass for String {}
+unsafe impl Receive for String {
     fn from_polyglot_value(value: *mut Value) -> Self {
-        Self {
-            ptr: value,
-            phantom: PhantomData,
-        }
+        Self { ptr: value }
     }
 }
 
-unsafe impl<T> Pass for ArrayList<T> where T: Pass + Receive {}
+impl String {
+    java_constructor! {
+        java.lang.String new();
+    }
+}
+
+
+class! [java.util.ArrayList<E> {
+    new_with_length(int initialCapacity);
+    new();
+    void trimToSize();
+    void ensureCapacity(int minCapacity);
+    int size();
+    boolean isEmpty();
+    boolean contains(Object o);
+    int indexOf(Object o);
+    int lastIndexOf(Object o);
+    Object clone();
+    E[] toArray();
+    E get(int index);
+    E set(int index, E element);
+    boolean add(E e);
+    void add_at add(int index, E element);
+    E remove_at remove(int index);
+    boolean remove_item remove(Object o);
+    void clear();
+   void removeRange(int fromIndex, int toIndex);
+}];

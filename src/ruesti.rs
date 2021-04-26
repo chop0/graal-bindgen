@@ -1,8 +1,10 @@
-
+/// A good chunk of this file was taken from https://github.com/ruestigraben/ruesti-base/blob/master/src/main/rust/polyglot.rs
 use core::intrinsics::transmute;
 use core::u64;
-use std::ffi::CString;
 use std::os::raw::c_char;
+use std::{ffi::CString, marker::PhantomData};
+
+use internal::make_cstring;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
@@ -21,9 +23,7 @@ macro_rules! primitive_receive {
     ($typename: ident, $graalfn: ident) => {
         impl Receive for $typename {
             fn from_polyglot_value(value: *mut Value) -> Self {
-                unsafe {
-                    $graalfn(value)
-                }
+                unsafe { $graalfn(value) }
             }
         }
     };
@@ -56,7 +56,6 @@ primitive_receive!(f32, polyglot_as_float, polyglot_fits_in_float);
 primitive_receive!(f64, polyglot_as_double, polyglot_fits_in_double);
 primitive_receive!(bool, polyglot_as_boolean, polyglot_is_boolean);
 
-
 /// Pass is a marker trait that indicates a type can safely be passed to the GraalVM Runtime.
 pub unsafe trait Pass {}
 
@@ -66,6 +65,42 @@ unsafe impl Pass for i8 {}
 unsafe impl Pass for i16 {}
 unsafe impl Pass for i32 {}
 unsafe impl Pass for i64 {}
+
+pub struct JavaArray<T>
+where
+    T: Pass + Receive,
+{
+    ptr: *mut Value,
+    phantom: PhantomData<T>,
+}
+
+unsafe impl<T> Pass for JavaArray<T> where T: Pass + Receive {}
+unsafe impl<T> Receive for JavaArray<T>
+where
+    T: Pass + Receive,
+{
+    fn from_polyglot_value(value: *mut Value) -> Self {
+        Self {
+            ptr: value,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> JavaArray<T>
+where
+    T: Pass + Receive,
+{
+    pub fn get(&self, index: u64) -> Option<T> {
+        unsafe {
+            if index >= polyglot_get_array_size(self.ptr) {
+                None
+            } else {
+                Some(T::from_polyglot_value(polyglot_get_array_element(self.ptr, index as i32)))
+            }
+        }
+    }
+}
 
 pub mod internal {
     extern "C" {
@@ -78,7 +113,6 @@ pub mod internal {
     }
 
     pub fn expect_variadic<T: super::Pass>(value: T) -> T {
-        
         value
     }
 
@@ -170,6 +204,16 @@ pub fn get_string_size(value: *const Value) -> u64 {
         panic!("Not a string")
     };
     unsafe { polyglot_get_string_size(value) }
+}
+
+pub fn as_string(value: *mut Value) -> String {
+    unsafe {
+        let len = get_string_size(value);
+        let buf = CString::new(vec![0; len as usize]).unwrap();
+        let charset = make_cstring("UTF-8");
+        polyglot_as_string(value, buf.as_ptr() as *mut i8, len, charset.as_ptr());
+        buf.into_string().unwrap()
+    }
 }
 
 pub fn is_null(value: *const Value) -> bool {

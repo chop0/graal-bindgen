@@ -2,7 +2,7 @@ use std::env;
 use std::path::PathBuf;
 fn main() {
     
-    //println!("cargo:rerun-if-changed=build.rs"); kj
+    //println!("cargo:rerun-if-changed=build.rs");  
     println!("cargo:rustc-env=LD_LIBRARY_PATH=/home/alec/graalvm-ce-java11-21.0.0.2/languages/llvm/native/lib");
 
 

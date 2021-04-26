@@ -4,17 +4,27 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
+use std::ffi::CString;
 
-use builtins::ArrayList;
-use ruesti::{java_type, Value};
-pub mod ruesti;
+use ruesti::{java_type, Receive, Value};
 pub mod builtins;
+pub mod ruesti;
 pub mod types;
+
+use builtins::*;
+
+include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[no_mangle]
 pub extern "C" fn main() {
-    let test: ArrayList<i32> = ArrayList::new();
-    
-    test.add(69);
-    println!("{}", test.get(0));
+    let list: ArrayList<i32> = ArrayList::new();
+    for i in 0..100 {
+        list.add(i);
+    }
+    assert_eq!(list.size(), 100);
+
+    for i in 0..100 {
+        list.remove_at(0);
+    }
+    assert_eq!(list.size(), 0);
 }
