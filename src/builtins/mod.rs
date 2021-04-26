@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::types::jtypes::*;
 use polyglot_macro::{class, java_constructor};
 
-use crate::polyglot::{JavaArray, Pass, Passable, Receive, Value};
+use crate::polyglot::{Pass, Receive, Value};
 
 pub struct Object {
     ptr: *mut Value,
@@ -63,27 +63,6 @@ class! [java.util.ArrayList<E> {
    void removeRange(int fromIndex, int toIndex);
 }];
 
-// class! [java.util.ArrayList<E> {
-//     new_with_length(int initialCapacity);
-//     new();
-//     void trimToSize();
-//     void ensureCapacity(int minCapacity);
-//     int size();
-//     boolean isEmpty();
-//     boolean contains(Object o);
-//     int indexOf(Object o);
-//     int lastIndexOf(Object o);
-//     Object clone();
-//     E[] toArray();
-//     E get(int index);
-//     E set(int index, E element);
-//     boolean add(E e);
-//     void add_at add(int index, E element);
-//     E remove_at remove(int index);
-//     boolean remove_item remove(Object o);
-//     void clear();
-//    void removeRange(int fromIndex, int toIndex);
-// }];
 
 
 

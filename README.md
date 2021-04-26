@@ -7,12 +7,28 @@
   - [Pass and Passable](#pass-and-passable)
   - [Receive](#receive)
 - [Generics](#generics)
+- [Arrays](#arrays)
+- [ArrayList example](#arraylist-example)
 
 ## Overview
 The `class` macro is the primary way to generate bindings to Java types;  it will generate a `struct` (with generics if specified) that implements `Pass` and `Receive` and has all the methods you give stubs for.  The methods generated can be used like normal rust methods, however mutability is **not** enforced.  The fully-qualified type name should precede a block containing method and constructor stubs.  Java primitives like `char`, `int`, and `byte` are aliased to corresponding Rust types.  
 
 ## Building
-Make sure you have [`cargo-make`](https://github.com/sagiegurari/cargo-make) installed.
+First, make sure you have [`cargo-make`](https://github.com/sagiegurari/cargo-make) installed, the `GRAAL_HOME` environment variable points to the root directory of your GraalVM installation, and the GraalVM LLVM toolchain is installed:
+```bash
+export GRAAL_HOME=[PATH_TO_GRAAL]
+cargo install cargo-make
+${GRAAL_HOME}/bin/gu install llvm-toolchain
+```
+You can then run
+```bash
+cargo make run
+```
+to run `main.rs`, or
+```bash
+cargo make build
+```
+to just compile it.
 
 ## Constructor stubs
 A stub is inferred to be a constructor if it doesn't have a return type.  The Rust name of the constructor must be explicitly declared, and doesn't have to be the name of the type.  
@@ -107,6 +123,11 @@ fn from_polyglot_value(value: *mut Value) -> Self {
 let my_arraylist: ArrayList<i32, _> = ArrayList::new();
 ```
 If something goes *really* wrong, you can explicitly specify the `Passable`.  For primitives, this will be the same as the main type.  For other Objects, this will be `*mut Value`.
+
+## Arrays
+Arrays are represented by `JavaArray`.  Currently, creating and updating elements in them has not been implemented and `Index` cannot be implemented, since the trait requires a reference to be returned.  The return value of .get() is an `Option`;  if the index is out of bounds, it will be `None`, otherwise it will be `Some(value_at_index)`.
+
+## ArrayList example
 ```java
 class! [java.util.ArrayList<E> {
     new_with_length(int initialCapacity);

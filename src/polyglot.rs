@@ -1,12 +1,12 @@
 /// A good chunk of this file was taken from https://github.com/ruestigraben/ruesti-base/blob/master/src/main/rust/polyglot.rs
 use core::intrinsics::transmute;
 use core::u64;
-use std::os::raw::c_char;
 use std::{ffi::CString, marker::PhantomData};
+use std::{os::raw::c_char};
 
 use internal::make_cstring;
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bindings.rs"));
 
 macro_rules! primitive_receive {
     ($typename: ident, $graalfn:ident, $assertfn:ident) => {
@@ -78,13 +78,14 @@ where
 /// A value that can be passed to Graal Polyglot.  This is either a number or a pointer to a polyglot value
 pub unsafe trait Passable {}
 
-pass_and_passable!(*const super::Value);
-pass_and_passable!(*mut super::Value);
+pass_and_passable!(*const Value);
+pass_and_passable!(*mut Value);
 pass_and_passable!(i8);
 pass_and_passable!(i16);
 pass_and_passable!(i32);
 pass_and_passable!(i64);
 
+#[derive(Clone, Copy)]
 pub struct JavaArray<T, U>
 where
     T: Pass<U> + Receive,
@@ -107,7 +108,7 @@ where
 unsafe impl<T, U> Receive for JavaArray<T, U>
 where
     T: Pass<U> + Receive,
-    U: Passable
+    U: Passable,
 {
     fn from_polyglot_value(value: *mut Value) -> Self {
         Self {
@@ -121,7 +122,7 @@ where
 impl<T, U> JavaArray<T, U>
 where
     T: Pass<U> + Receive,
-    U: Passable
+    U: Passable,
 {
     pub fn get(&self, index: u64) -> Option<T> {
         unsafe {

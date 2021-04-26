@@ -2,16 +2,12 @@ use parse::Parser;
 use quote::{ToTokens, TokenStreamExt, format_ident, quote};
 use syn::{
     braced,
-    ext::IdentExt,
     parenthesized,
     parse::{self, Parse, ParseStream},
     punctuated::Punctuated,
     Ident, Token, Type,
 };
 
-const PRIMITIVE_NAMES: &'static [&'static str] = &[
-    "byte", "i8", "short", "i16", "int", "i32", "long", "i64", "double", "f64", "boolean", "bool",
-];
 macro_rules! punctuated_to_string {
     ($punctuated: expr, $separator: expr) => {
         $punctuated
@@ -22,11 +18,6 @@ macro_rules! punctuated_to_string {
     };
 }
 
-fn type_is_primitive(ty: &Type) -> bool {
-    PRIMITIVE_NAMES
-        .iter()
-        .any(|x| **x == ty.to_token_stream().to_string())
-}
 
 #[derive(Debug)]
 struct JavaType {
@@ -59,7 +50,7 @@ impl ToTokens for JavaType {
             // };
 
             (quote! {
-                JavaArray<#java_type, #pass_type>
+                crate::polyglot::JavaArray<#java_type, #pass_type>
             })
             .to_tokens(tokens);
         } else {
@@ -301,7 +292,7 @@ fn quote_constructor_stub(
 
     quote! {
         pub fn #rust_constructor_name (#(#args),*) -> #rust_type_name #generics {
-            let polyglot_type = crate::java_type(#name_lit);
+            let polyglot_type = crate::polyglot::java_type(#name_lit);
             #rust_type_name #generics_and_turbofish ::from_polyglot_value(crate::new_instance!(polyglot_type #(,#arg_names)*))
         }
     }
@@ -341,7 +332,7 @@ fn quote_qualified_constructor_stub(
 
     quote! {
         pub fn #rust_constructor_name (#(#args),*) -> #rust_type_name #generics {
-            let polyglot_type = crate::java_type(#name_lit);
+            let polyglot_type = crate::polyglot::java_type(#name_lit);
             #rust_type_name #generics_and_turbofish ::from_polyglot_value(crate::new_instance!(polyglot_type #(,#arg_names)*))
         }
     }
@@ -481,8 +472,8 @@ pub fn class(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let ty_passable = &passable_generics[i];
             stream.append_all(
                 quote! {
-                    #ty_passable: Passable,
-                    #ty: Pass<#ty_passable> + Receive,
+                    #ty_passable: crate::polyglot::Passable,
+                    #ty: crate::polyglot::Pass<#ty_passable> + crate::polyglot::Receive,
                 }
                 .to_token_stream(),
             );
@@ -526,6 +517,7 @@ pub fn class(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     let result = quote! {
+        #[derive(Clone, Copy)]
         pub struct #rust_name #generics where #generic_bounds
         {
             ptr: *mut Value,
@@ -536,7 +528,7 @@ pub fn class(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #(#stubs)*
         }
 
-        unsafe impl#generics Receive for #rust_name #generics where #generic_bounds
+        unsafe impl#generics crate::polyglot::Receive for #rust_name #generics where #generic_bounds
         {
             fn from_polyglot_value(value: *mut Value) -> Self {
                 Self {
@@ -546,7 +538,7 @@ pub fn class(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
 
-        unsafe impl#generics Pass<*mut Value> for #rust_name #generics where #generic_bounds {
+        unsafe impl#generics crate::polyglot::Pass<*mut Value> for #rust_name #generics where #generic_bounds {
             fn pass(&self) -> *mut Value {
                 self.ptr
             }

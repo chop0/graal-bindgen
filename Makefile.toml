@@ -2,14 +2,14 @@
 RUSTFLAGS = "-C linker=${GRAAL_HOME}/languages/llvm/native/bin/clang -C ar=${GRAAL_HOME}/languages/llvm/native/bin/ar -C link-args=-lgraalvm-llvm -Og --emit=llvm-bc"
 
 [tasks.ensure_graal]
-condition = {env_not_set = ["GRAAL_HOME"], fail_message = "Found GraalVM in ${GRAAL_HOME}."}
+condition = { env_not_set = ["GRAAL_HOME"], fail_message = "Found GraalVM in ${GRAAL_HOME}." }
 script = '''
 echo Environment variable GRAAL_HOME is not set.  Set it to GraalVM\'s root directory. 
 exit 1
 '''
 
 [tasks.ensure_llvm]
-condition = {files_not_exist = ["${GRAAL_HOME}/languages/llvm/native"], fail_message = "Found LLVM toolchain in ${GRAAL_HOME}/languages/llvm/native."}
+condition = { files_not_exist = ["${GRAAL_HOME}/languages/llvm/native"], fail_message = "Found LLVM toolchain in ${GRAAL_HOME}/languages/llvm/native." }
 script = '''
 echo LLVM toolchain was not found in ${GRAAL_HOME}/languages/llvm/native.  Try running "gu install llvm-toolchain".
 exit 1
@@ -17,23 +17,35 @@ exit 1
 
 [tasks.clean]
 command = "cargo"
-dependencies = ["clean_buildscript"]
 args = ["clean", "-p", "graal-bindgen", "-p", "polyglot_macro"]
 
-[tasks.clean_buildscript]
-script = '''
-find -name "*build_script_build*" -exec rm {} \;
-'''
+[tasks.bindings]
+install_crate = { crate_name = "bindgen", binary = "bindgen", test_arg = "--help" }
+command = "bindgen"
+args = [
+    "${CARGO_MAKE_WORKING_DIRECTORY}/src/header.h",
+    "--rust-target",
+    "1.40",
+    "--no-derive-default",
+    "--ctypes-prefix",
+    "crate::types::ctypes",
+    "--generate",
+    "functions,types,vars,methods,constructors,destructors",
+    "-o",
+    "${CARGO_MAKE_WORKING_DIRECTORY}/src/bindings.rs",
+    "--",
+    "-I${GRAAL_HOME}/languages/llvm/include",
+]
 
 [tasks.build]
 command = "cargo"
-dependencies = ["ensure_graal", "ensure_llvm", "clean"]
+dependencies = ["ensure_graal", "ensure_llvm", "clean", "bindings"]
 args = ["build"]
 
 [tasks.run]
 dependencies = ["build"]
 script = '''
-${GRAAL_HOME}/languages/llvm/bin/lli --polyglot --lib $(rustc --print sysroot)/lib/libstd-* target/debug/deps/rustgraal-*.bc
+${GRAAL_HOME}/languages/llvm/bin/lli --polyglot --lib $(rustc --print sysroot)/lib/libstd-* target/debug/deps/graal_bindgen-*.bc
 '''
 
 [tasks.test]
