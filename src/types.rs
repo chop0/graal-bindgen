@@ -1,5 +1,5 @@
 pub mod ctypes {
-    use crate::ruesti::Value;
+    use crate::polyglot::Value;
 
     pub type c_void = Value;
     pub type c_char = i8;

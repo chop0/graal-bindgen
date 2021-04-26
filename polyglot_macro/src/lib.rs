@@ -1,5 +1,5 @@
-use parse::{Parser};
-use quote::{quote, ToTokens, TokenStreamExt};
+use parse::Parser;
+use quote::{ToTokens, TokenStreamExt, format_ident, quote};
 use syn::{
     braced,
     ext::IdentExt,
@@ -9,6 +9,9 @@ use syn::{
     Ident, Token, Type,
 };
 
+const PRIMITIVE_NAMES: &'static [&'static str] = &[
+    "byte", "i8", "short", "i16", "int", "i32", "long", "i64", "double", "f64", "boolean", "bool",
+];
 macro_rules! punctuated_to_string {
     ($punctuated: expr, $separator: expr) => {
         $punctuated
@@ -18,6 +21,13 @@ macro_rules! punctuated_to_string {
             .join($separator)
     };
 }
+
+fn type_is_primitive(ty: &Type) -> bool {
+    PRIMITIVE_NAMES
+        .iter()
+        .any(|x| **x == ty.to_token_stream().to_string())
+}
+
 #[derive(Debug)]
 struct JavaType {
     ty: Type,
@@ -39,10 +49,19 @@ impl Parse for JavaType {
 impl ToTokens for JavaType {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         if self.array {
-            proc_macro2::Ident::new("JavaArray", proc_macro2::Span::call_site()).to_tokens(tokens);
-            proc_macro2::Punct::new('<', proc_macro2::Spacing::Alone).to_tokens(tokens);
-            self.ty.to_tokens(tokens);
-            proc_macro2::Punct::new('>', proc_macro2::Spacing::Alone).to_tokens(tokens);
+            let java_type = &self.ty;
+
+            let pass_type = format_ident!("{}Passable", java_type.to_token_stream().to_string());
+            // let pass_type = if type_is_primitive(&self.ty) {
+            //     self.ty.to_token_stream()
+            // } else {
+            //     quote!(*mut Value)
+            // };
+
+            (quote! {
+                JavaArray<#java_type, #pass_type>
+            })
+            .to_tokens(tokens);
         } else {
             self.ty.to_tokens(tokens);
         };
@@ -327,11 +346,11 @@ fn quote_qualified_constructor_stub(
         }
     }
 }
-/** 
+/**
  `[return_type] name [java_name]([args]);` \
  This function takes a JavaFunctionStub and generates the binding code for it. \
- The following JavaFunctionStub will generate a binding for 
- `ArrayList#remove(int index)`, using remove_at as the rust name and `remove` as the java name. (some types shown as strings for clarity):  
+ The following JavaFunctionStub will generate a binding for
+ `ArrayList#remove(int index)`, using remove_at as the rust name and `remove` as the java name. (some types shown as strings for clarity):
  ```rust
  JavaFunctionStub {
     return_type: "int",
@@ -346,16 +365,16 @@ fn quote_qualified_constructor_stub(
  pub fn remove_at(&self, index: int) -> E {
     return E::from_polyglot_value({
         unsafe {
-            crate::ruesti::internal::polyglot_invoke(
+            crate::polyglot::internal::polyglot_invoke(
                 self.ptr,
-                crate::ruesti::internal::make_cstring("remove").as_ptr(),
-                crate::ruesti::internal::expect_variadic(index),
+                crate::polyglot::internal::make_cstring("remove").as_ptr(),
+                crate::polyglot::internal::expect_variadic(index),
             )
         }
     });
 }
 ```
-If `java_name` is `None`, it will be assumed to be the same as the provided `rust_name`.  
+If `java_name` is `None`, it will be assumed to be the same as the provided `rust_name`.
 The main purpose of `java_name` is to rename overloaded Java functions, since Rust does not support overloading.
 */
 fn quote_function_stub(stub: JavaFunctionStub) -> proc_macro2::TokenStream {
@@ -368,7 +387,9 @@ fn quote_function_stub(stub: JavaFunctionStub) -> proc_macro2::TokenStream {
     } = stub;
 
     // If no java name was provided, we just assume the java name is the same as the rust function name
-    let java_name = java_name.map(|x|x.to_string()).unwrap_or(rust_name.to_string());
+    let java_name = java_name
+        .map(|x| x.to_string())
+        .unwrap_or(rust_name.to_string());
 
     let (args, arg_names) = parse_java_args(args);
 
@@ -396,11 +417,11 @@ pub fn java_constructor(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     output.into()
 }
 
-/** 
+/**
  `[return_type] rust_name [java_name]([args]);` \
  This function takes a JavaFunctionStub and generates the binding code for it. \
- The following JavaFunctionStub will generate a binding for 
- `ArrayList#remove(int index)`, using remove_at as the rust name and `remove` as the java name. (some types shown as strings for clarity):  
+ The following JavaFunctionStub will generate a binding for
+ `ArrayList#remove(int index)`, using remove_at as the rust name and `remove` as the java name. (some types shown as strings for clarity):
  ```java
  int remove_at remove(int index);
 ```
@@ -409,16 +430,16 @@ pub fn java_constructor(input: proc_macro::TokenStream) -> proc_macro::TokenStre
  pub fn remove_at(&self, index: int) -> E {
     return E::from_polyglot_value({
         unsafe {
-            crate::ruesti::internal::polyglot_invoke(
+            crate::polyglot::internal::polyglot_invoke(
                 self.ptr,
-                crate::ruesti::internal::make_cstring("remove").as_ptr(),
-                crate::ruesti::internal::expect_variadic(index),
+                crate::polyglot::internal::make_cstring("remove").as_ptr(),
+                crate::polyglot::internal::expect_variadic(index),
             )
         }
     });
 }
 ```
-If `java_name` is `None`, it will be assumed to be the same as the provided `rust_name`.  
+If `java_name` is `None`, it will be assumed to be the same as the provided `rust_name`.
 The main purpose of `java_name` is to rename overloaded Java functions, since Rust does not support overloading.
 */
 #[proc_macro]
@@ -441,58 +462,95 @@ pub fn class(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let class = syn::parse_macro_input!(input as Class);
     let mut stubs = vec![];
 
+    let rust_name = class.qualified_name.last().unwrap();
+
+    let mut passable_generics: Vec<Type> = vec![]; // Add new generic types so we can constrain the value of our desired generic types to be Pass + Receive
+    let generics = class.generics.map(|generics| {
+        for generic_arg in &generics.args {
+            passable_generics.push(
+                syn::parse_str(&(generic_arg.to_token_stream().to_string() + "Passable")).unwrap(),
+            )
+        }
+        generics
+    });
+
+    let generic_bounds = generics.as_ref().map(|AngleBracketGenerics { args, .. }| {
+        let mut stream = proc_macro2::TokenStream::new();
+        for i in 0..args.len() {
+            let ty = &args[i];
+            let ty_passable = &passable_generics[i];
+            stream.append_all(
+                quote! {
+                    #ty_passable: Passable,
+                    #ty: Pass<#ty_passable> + Receive,
+                }
+                .to_token_stream(),
+            );
+        }
+
+        stream
+    });
+
+    let generics = generics.map(|mut x| {
+        // Combine the passable generics and required ones so we can declare them on the struct
+        for i in passable_generics {
+            x.args.push(i);
+        }
+        x
+    });
+
+    let mut phantom_field_declarations = vec![];
+    let mut phantom_field_initializations = vec![];
+    if let Some(ref generics) = generics {
+        for type_name in &generics.args {
+            let field_name = quote::format_ident!("__phantom_{}", type_name.to_token_stream().to_string());
+            phantom_field_declarations.push(quote! {
+                #field_name: PhantomData<#type_name>
+            });
+            phantom_field_initializations.push(quote! {
+                #field_name: PhantomData
+            })
+            
+        }
+    }
+
     for stub in class.stubs {
         match stub {
             JavaStub::JavaConstructorStub(stub) => stubs.push(quote_constructor_stub(
                 &class.qualified_name,
-                &class.generics,
+                &generics,
                 stub,
             )),
             JavaStub::JavaFunctionStub(stub) => stubs.push(quote_function_stub(stub)),
         }
     }
 
-    let rust_name = class.qualified_name.last().unwrap();
-    let generics = class.generics;
-
-    let generic_bounds = generics.as_ref().map(|AngleBracketGenerics { args, .. }| {
-        let mut stream = proc_macro2::TokenStream::new();
-        for ty in args {
-            // i'm not proud of this
-            stream
-                .append::<Ident>(syn::parse::Parser::parse_str(Ident::parse_any, "where").unwrap());
-            stream.append::<Ident>(syn::parse_str(&(ty.to_token_stream().to_string())).unwrap());
-            stream.append::<proc_macro2::Punct>(syn::parse_str(":").unwrap());
-            stream.append::<Ident>(syn::parse_str("Pass").unwrap());
-            stream.append::<proc_macro2::Punct>(syn::parse_str("+").unwrap());
-            stream.append::<Ident>(syn::parse_str("Receive").unwrap());
-        }
-
-        stream 
-    });
-
     let result = quote! {
-        pub struct #rust_name #generics #generic_bounds
+        pub struct #rust_name #generics where #generic_bounds
         {
             ptr: *mut Value,
-            phantom: PhantomData<E>,
+            #(#phantom_field_declarations),*
         }
 
-        impl#generics #rust_name #generics #generic_bounds {
+        impl#generics #rust_name #generics where #generic_bounds {
             #(#stubs)*
         }
 
-        unsafe impl#generics Receive for #rust_name #generics #generic_bounds
+        unsafe impl#generics Receive for #rust_name #generics where #generic_bounds
         {
             fn from_polyglot_value(value: *mut Value) -> Self {
                 Self {
                     ptr: value,
-                    phantom: PhantomData,
+                    #(#phantom_field_initializations),*
                 }
             }
         }
 
-        unsafe impl#generics Pass for #rust_name #generics #generic_bounds {}
+        unsafe impl#generics Pass<*mut Value> for #rust_name #generics where #generic_bounds {
+            fn pass(&self) -> *mut Value {
+                self.ptr
+            }
+        }
     };
 
     result.into()

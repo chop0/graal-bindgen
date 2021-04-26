@@ -28,6 +28,17 @@ macro_rules! primitive_receive {
         }
     };
 }
+
+macro_rules! pass_and_passable {
+    ($typename: ty) => {
+        unsafe impl Passable for $typename {}
+        unsafe impl Pass<$typename> for $typename {
+            fn pass(&self) -> Self {
+                *self
+            }
+        }
+    };
+}
 #[repr(C)]
 pub struct Value {
     _private: [u8; 0],
@@ -57,46 +68,70 @@ primitive_receive!(f64, polyglot_as_double, polyglot_fits_in_double);
 primitive_receive!(bool, polyglot_as_boolean, polyglot_is_boolean);
 
 /// Pass is a marker trait that indicates a type can safely be passed to the GraalVM Runtime.
-pub unsafe trait Pass {}
-
-unsafe impl Pass for *const super::Value {}
-unsafe impl Pass for *mut super::Value {}
-unsafe impl Pass for i8 {}
-unsafe impl Pass for i16 {}
-unsafe impl Pass for i32 {}
-unsafe impl Pass for i64 {}
-
-pub struct JavaArray<T>
+pub unsafe trait Pass<T>
 where
-    T: Pass + Receive,
+    T: Passable,
+{
+    fn pass(&self) -> T;
+}
+
+/// A value that can be passed to Graal Polyglot.  This is either a number or a pointer to a polyglot value
+pub unsafe trait Passable {}
+
+pass_and_passable!(*const super::Value);
+pass_and_passable!(*mut super::Value);
+pass_and_passable!(i8);
+pass_and_passable!(i16);
+pass_and_passable!(i32);
+pass_and_passable!(i64);
+
+pub struct JavaArray<T, U>
+where
+    T: Pass<U> + Receive,
+    U: Passable,
 {
     ptr: *mut Value,
     phantom: PhantomData<T>,
+    phantom2: PhantomData<U>,
 }
 
-unsafe impl<T> Pass for JavaArray<T> where T: Pass + Receive {}
-unsafe impl<T> Receive for JavaArray<T>
+unsafe impl<T, U> Pass<*mut Value> for JavaArray<T, U>
 where
-    T: Pass + Receive,
+    T: Pass<U> + Receive,
+    U: Passable,
+{
+    fn pass(&self) -> *mut Value {
+        self.ptr
+    }
+}
+unsafe impl<T, U> Receive for JavaArray<T, U>
+where
+    T: Pass<U> + Receive,
+    U: Passable
 {
     fn from_polyglot_value(value: *mut Value) -> Self {
         Self {
             ptr: value,
             phantom: PhantomData,
+            phantom2: PhantomData,
         }
     }
 }
 
-impl<T> JavaArray<T>
+impl<T, U> JavaArray<T, U>
 where
-    T: Pass + Receive,
+    T: Pass<U> + Receive,
+    U: Passable
 {
     pub fn get(&self, index: u64) -> Option<T> {
         unsafe {
             if index >= polyglot_get_array_size(self.ptr) {
                 None
             } else {
-                Some(T::from_polyglot_value(polyglot_get_array_element(self.ptr, index as i32)))
+                Some(T::from_polyglot_value(polyglot_get_array_element(
+                    self.ptr,
+                    index as i32,
+                )))
             }
         }
     }
@@ -112,8 +147,8 @@ pub mod internal {
         pub fn polyglot_new_instance(value: *const super::Constructor, ...) -> *mut super::Value;
     }
 
-    pub fn expect_variadic<T: super::Pass>(value: T) -> T {
-        value
+    pub fn expect_variadic<U: super::Passable, T: super::Pass<U>>(value: T) -> U {
+        value.pass()
     }
 
     pub fn make_cstring(string: &str) -> super::CString {
@@ -137,16 +172,16 @@ pub mod internal {
 macro_rules! new_instance {
     ($constructor: expr) => {{
         unsafe {
-            $crate::ruesti::internal::polyglot_new_instance(
+            $crate::polyglot::internal::polyglot_new_instance(
                 $constructor
             )
         }
     }};
     ($constructor: expr, $($args: expr),*) => {{
         unsafe {
-            $crate::ruesti::internal::polyglot_new_instance(
+            $crate::polyglot::internal::polyglot_new_instance(
                 $constructor,
-                $($crate::ruesti::internal::expect_variadic($args)),*
+                $($crate::polyglot::internal::expect_variadic($args)),*
             )
         }
     }}
@@ -156,18 +191,18 @@ macro_rules! new_instance {
 macro_rules! invoke_method {
     ($value: expr, $method: expr) => {{
         unsafe {
-            $crate::ruesti::internal::polyglot_invoke(
+            $crate::polyglot::internal::polyglot_invoke(
                 $value,
-                $crate::ruesti::internal::make_cstring($method).as_ptr()
+                $crate::polyglot::internal::make_cstring($method).as_ptr()
             )
         }
     }};
     ($value: expr, $method: expr, $($args: expr),+) => {{
         unsafe {
-            $crate::ruesti::internal::polyglot_invoke(
+            $crate::polyglot::internal::polyglot_invoke(
                 $value,
-                $crate::ruesti::internal::make_cstring($method).as_ptr(),
-                $($crate::ruesti::internal::expect_variadic($args)),*
+                $crate::polyglot::internal::make_cstring($method).as_ptr(),
+                $($crate::polyglot::internal::expect_variadic($args)),*
             )
         }
     }}
@@ -176,12 +211,12 @@ macro_rules! invoke_method {
 #[macro_export]
 macro_rules! execute {
     ($executable: expr) => {{
-        let fnptr = $crate::ruesti::internal::transmute_executable_nullary($executable);
+        let fnptr = $crate::polyglot::internal::transmute_executable_nullary($executable);
         fnptr()
     }};
     ($executable: expr, $($args: expr),+) => {{
-        let fnptr = $crate::ruesti::internal::transmute_executable($executable);
-        fnptr($($crate::ruesti::internal::expect_variadic($args)),+)
+        let fnptr = $crate::polyglot::internal::transmute_executable($executable);
+        fnptr($($crate::polyglot::internal::expect_variadic($args)),+)
     }};
 }
 
