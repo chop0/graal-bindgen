@@ -1,5 +1,5 @@
 # `graal-bindgen` <!-- omit in toc -->
-## `graal-bindgen` generates safe bindings between Rust and Graal Polyglot. <!-- omit in toc -->
+## `graal-bindgen` generates safe bindings between Rust and Graal Polyglot so that you can use Java types and methods as if they were native. <!-- omit in toc -->
 - [Overview](#overview)
 - [Building](#building)
 - [Constructor stubs](#constructor-stubs)
