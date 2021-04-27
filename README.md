@@ -30,7 +30,7 @@ to run `main.rs`, or
 cargo make build
 ```
 to just compile it.
-
+Currently, `graal-bindgen` isn't published on crates.io since its build process is reliant on GraalVM being installed.
 ## ArrayList example
 The following example uses nested Java `ArrayList`s, and then uses the `ArrayList#toArray` method to convert it to an Array.
 ```rust
