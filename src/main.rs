@@ -16,12 +16,20 @@ pub extern "C" fn main() {
     for i in 0..100 {
         list_in_list.add(i);
     }
-
     list.add(list_in_list);
-    let array_from_list = list.toArray().get(0).unwrap().toArray();
-    let list2 = ArrayList::new();
-    list2.add(array_from_list);
+    let array_from_list = list.get(0).toArray();
     for i in 0..100 {
-        println!("{}", list2.get(0).get(i).unwrap());
+        println!("{}", array_from_list.get(i).unwrap());
     }
+
+    // let mut vec = Vec::new();
+    // let mut vec_in_vec = Vec::new();
+    // for i in 0..100 {
+    //     vec_in_vec.push(i);
+    // }
+    // vec.push(vec_in_vec);
+    // let slice_from_vec = vec.get(0).unwrap().as_slice();
+    // for i in 0..100 {
+    //     println!("{}", slice_from_vec.get(i).unwrap());
+    // }
 }

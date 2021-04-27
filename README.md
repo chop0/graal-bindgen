@@ -129,26 +129,42 @@ If something goes *really* wrong, you can explicitly specify the `Passable`.  Fo
 Arrays are represented by `JavaArray`.  Currently, creating and updating elements in them has not been implemented and `Index` cannot be implemented, since the trait requires a reference to be returned.  The return value of .get() is an `Option`;  if the index is out of bounds, it will be `None`, otherwise it will be `Some(value_at_index)`.
 
 ## ArrayList example
-```java
-class! [java.util.ArrayList<E> {
-    new_with_length(int initialCapacity);
+Using java `ArrayList`s and arrays:
+```rust
+use crate::polyglot::*;
+use std::marker::PhantomData;
+use crate::types::jtypes::*;
+
+polyglot_macro::class! [java.util.ArrayList<E> {
     new();
-    void trimToSize();
-    void ensureCapacity(int minCapacity);
-    int size();
-    boolean isEmpty();
-    boolean contains(Object o);
-    int indexOf(Object o);
-    int lastIndexOf(Object o);
-    Object clone();
-    E[] toArray();
     E get(int index);
-    E set(int index, E element);
     boolean add(E e);
-    void add_at add(int index, E element);
-    E remove_at remove(int index);
-    boolean remove_item remove(Object o);
-    void clear();
-    void removeRange(int fromIndex, int toIndex);
+    E[] toArray();
 }];
+
+let list = ArrayList::new();
+let list_in_list = ArrayList::new();
+for i in 0..100 {
+    list_in_list.add(i);
+}
+list.add(list_in_list);
+let array_from_list = list.get(0).toArray();
+for i in 0..100 {
+    println!("{}", array_from_list.get(i).unwrap());
+}
 ```
+Equivalent using `Vec` and slices:
+```rust
+let mut vec = Vec::new();
+let mut vec_in_vec = Vec::new();
+for i in 0..100 {
+    vec_in_vec.push(i);
+}
+vec.push(vec_in_vec);
+let slice_from_vec = vec.get(0).unwrap().as_slice();
+for i in 0..100 {
+    println!("{}", slice_from_vec.get(i).unwrap());
+}
+```
+
+A full implementation of `java.util.ArrayList` can be seen in [src/builtins/mod.rs](src/builtins/mod.rs).
