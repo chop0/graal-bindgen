@@ -1,7 +1,8 @@
 # `graal-bindgen` <!-- omit in toc -->
-## `graal-bindgen` generates safe bindings between Rust and Graal Polyglot so that you can use Java types and methods as if they were native. <!-- omit in toc -->
+## `graal-bindgen` generates safe bindings between Rust and Graal Polyglot so that you can use Java types and methods as if they were native to Rust. <!-- omit in toc -->
 - [Overview](#overview)
 - [Building](#building)
+- [ArrayList example](#arraylist-example)
 - [Constructor stubs](#constructor-stubs)
 - [Function stubs](#function-stubs)
 - [Pass and Receive](#pass-and-receive)
@@ -9,7 +10,6 @@
   - [Receive](#receive)
 - [Generics](#generics)
 - [Arrays](#arrays)
-- [ArrayList example](#arraylist-example)
 
 ## Overview
 The `class` macro is the primary way to generate bindings to Java types;  it will generate a `struct` (with generics if specified) that implements `Pass` and `Receive` and has all the methods you give stubs for.  The methods generated can be used like normal rust methods, however mutability is **not** enforced.  The fully-qualified type name should precede a block containing method and constructor stubs.  Java primitives like `char`, `int`, and `byte` are aliased to corresponding Rust types.  
@@ -30,6 +30,47 @@ to run `main.rs`, or
 cargo make build
 ```
 to just compile it.
+
+## ArrayList example
+The following example uses nested Java `ArrayList`s, and then uses the `ArrayList#toArray` method to convert it to an Array.
+```rust
+use crate::polyglot::*;
+use std::marker::PhantomData;
+use crate::types::jtypes::*;
+
+polyglot_macro::class! [java.util.ArrayList<E> {
+    new();
+    E get(int index);
+    boolean add(E e);
+    E[] toArray();
+}];
+
+let list = ArrayList::new();
+let list_in_list = ArrayList::new();
+for i in 0..100 {
+    list_in_list.add(i);
+}
+list.add(list_in_list);
+let array_from_list = list.get(0).toArray();
+for i in 0..100 {
+    println!("{}", array_from_list.get(i).unwrap());
+}
+```
+Here's what the preceding code would look like in normal Rust using `Vec` and slices:
+```rust
+let mut vec = Vec::new();
+let mut vec_in_vec = Vec::new();
+for i in 0..100 {
+    vec_in_vec.push(i);
+}
+vec.push(vec_in_vec);
+let slice_from_vec = vec.get(0).unwrap().as_slice();
+for i in 0..100 {
+    println!("{}", slice_from_vec.get(i).unwrap());
+}
+```
+
+A full implementation of `java.util.ArrayList` can be seen in [src/builtins/mod.rs](src/builtins/mod.rs).
 
 ## Constructor stubs
 A stub is inferred to be a constructor if it doesn't have a return type.  The Rust name of the constructor must be explicitly declared, and doesn't have to be the name of the type.  
@@ -127,44 +168,3 @@ If something goes *really* wrong, you can explicitly specify the `Passable`.  Fo
 
 ## Arrays
 Arrays are represented by `JavaArray`.  Currently, creating and updating elements in them has not been implemented and `Index` cannot be implemented, since the trait requires a reference to be returned.  The return value of .get() is an `Option`;  if the index is out of bounds, it will be `None`, otherwise it will be `Some(value_at_index)`.
-
-## ArrayList example
-Using java `ArrayList`s and arrays:
-```rust
-use crate::polyglot::*;
-use std::marker::PhantomData;
-use crate::types::jtypes::*;
-
-polyglot_macro::class! [java.util.ArrayList<E> {
-    new();
-    E get(int index);
-    boolean add(E e);
-    E[] toArray();
-}];
-
-let list = ArrayList::new();
-let list_in_list = ArrayList::new();
-for i in 0..100 {
-    list_in_list.add(i);
-}
-list.add(list_in_list);
-let array_from_list = list.get(0).toArray();
-for i in 0..100 {
-    println!("{}", array_from_list.get(i).unwrap());
-}
-```
-Equivalent using `Vec` and slices:
-```rust
-let mut vec = Vec::new();
-let mut vec_in_vec = Vec::new();
-for i in 0..100 {
-    vec_in_vec.push(i);
-}
-vec.push(vec_in_vec);
-let slice_from_vec = vec.get(0).unwrap().as_slice();
-for i in 0..100 {
-    println!("{}", slice_from_vec.get(i).unwrap());
-}
-```
-
-A full implementation of `java.util.ArrayList` can be seen in [src/builtins/mod.rs](src/builtins/mod.rs).
