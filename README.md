@@ -38,7 +38,7 @@ use crate::polyglot::*;
 use std::marker::PhantomData;
 use crate::types::jtypes::*;
 
-polyglot_macro::class! [java.util.ArrayList<E> {
+graal_bindgen_macros::class! [java.util.ArrayList<E> {
     new();
     E get(int index);
     boolean add(E e);

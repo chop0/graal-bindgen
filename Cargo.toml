@@ -3,16 +3,18 @@ name = "graal-bindgen"
 version = "0.1.0"
 authors = ["chop0 <chop@quenda.net>"]
 edition = "2018"
+description = "graal-bindgen generates safe bindings between Rust and Graal Polyglot so that you can use Java types and methods as if they were native to Rust."
+readme = "README.md"
+homepage = "https://github.com/chop0/graal-bindgen/"
+repository = "https://github.com/chop0/graal-bindgen/"
+license = "MIT OR Apache-2.0"
+keywords = ["ffi", "graalvm", "code-generation", "bindings", "java"]
+categories = ["external-ffi-bindings", "development-tools::ffi", "development-tools"]
 
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
 cc = "1.0.67"
 bindgen = "0.58.1"
 
 [dependencies]
-syn-mid = "0.5.3"
-proc-macro2 = "1.0.26"
-concat-idents = "1.1.2"
-polyglot_macro = { path = "polyglot_macro" }
+graal-bindgen-macros = { path = "graal-bindgen-macros", version = "*"}

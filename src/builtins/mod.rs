@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::types::jtypes::*;
-use polyglot_macro::{class, java_constructor};
+use graal_bindgen_macros::{class, java_constructor};
 
 use crate::polyglot::{Pass, Receive, Value};
 

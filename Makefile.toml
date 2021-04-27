@@ -17,7 +17,7 @@ exit 1
 
 [tasks.clean]
 command = "cargo"
-args = ["clean", "-p", "graal-bindgen", "-p", "polyglot_macro"]
+args = ["clean", "-p", "graal-bindgen", "-p", "graal-bindgen-macros"]
 
 [tasks.bindings]
 install_crate = { crate_name = "bindgen", binary = "bindgen", test_arg = "--help" }

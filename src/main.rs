@@ -2,7 +2,6 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
-#![allow(dead_code)]
 
 pub mod builtins;
 pub mod polyglot;
@@ -25,7 +24,7 @@ pub extern "C" fn main() {
     // let mut vec = Vec::new();
     // let mut vec_in_vec = Vec::new();
     // for i in 0..100 {
-    //     vec_in_vec.push(i);
+    //     vec_in_vec.push(i); 
     // }
     // vec.push(vec_in_vec);
     // let slice_from_vec = vec.get(0).unwrap().as_slice();

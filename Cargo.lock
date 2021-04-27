@@ -106,16 +106,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "concat-idents"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f29bafee6d91a80db18bcd41dbdbb8d1d117ea31676b22e7370061ccea5f76c"
-dependencies = [
- "quote",
- "syn",
-]
-
-[[package]]
 name = "env_logger"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -140,10 +130,16 @@ version = "0.1.0"
 dependencies = [
  "bindgen",
  "cc",
- "concat-idents",
- "polyglot_macro",
+ "graal-bindgen-macros",
+]
+
+[[package]]
+name = "graal-bindgen-macros"
+version = "0.1.0"
+dependencies = [
  "proc-macro2",
- "syn-mid",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -221,15 +217,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 
 [[package]]
-name = "polyglot_macro"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -291,17 +278,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
-]
-
-[[package]]
-name = "syn-mid"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baa8e7560a164edb1621a55d18a0c59abf49d360f47aa7b821061dd7eea7fac9"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
