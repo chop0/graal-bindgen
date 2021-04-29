@@ -2,7 +2,7 @@
 ## `graal-bindgen` generates safe bindings between Rust and Graal Polyglot so that you can use Java types and methods as if they were native to Rust. <!-- omit in toc -->
 - [Overview](#overview)
 - [Building](#building)
-- [TODO] (#todo)
+- [TODO](#todo)
 - [ArrayList example](#arraylist-example)
 - [Constructor stubs](#constructor-stubs)
 - [Function stubs](#function-stubs)
