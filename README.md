@@ -2,6 +2,7 @@
 ## `graal-bindgen` generates safe bindings between Rust and Graal Polyglot so that you can use Java types and methods as if they were native to Rust. <!-- omit in toc -->
 - [Overview](#overview)
 - [Building](#building)
+- [TODO] (#todo)
 - [ArrayList example](#arraylist-example)
 - [Constructor stubs](#constructor-stubs)
 - [Function stubs](#function-stubs)
@@ -31,6 +32,13 @@ cargo make build
 ```
 to just compile it.
 Currently, `graal-bindgen` isn't published on crates.io since its build process is reliant on GraalVM being installed.
+## TODO
+- [ ] Automated generation from Javadoc
+- [ ] Generics in generics
+- [ ] Generic bounds (`CitrusJuice<? extends CitrusFruit>`
+- [ ] Static field access
+- [ ] Function and type declaration from Rust
+- [ ] Tests
 ## ArrayList example
 The following example uses nested Java `ArrayList`s, and then uses the `ArrayList#toArray` method to convert it to an Array.
 ```rust
