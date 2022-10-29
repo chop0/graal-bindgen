@@ -1,10 +1,7 @@
-/// A good chunk of this file was taken from https://github.com/ruestigraben/ruesti-base/blob/master/src/main/rust/polyglot.rs
 use core::intrinsics::transmute;
+use core::marker::PhantomData;
 use core::u64;
-use std::{ffi::CString, marker::PhantomData};
-use std::{os::raw::c_char};
-
-use internal::make_cstring;
+use std::ffi::CString;
 
 include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/bindings.rs"));
 
@@ -39,13 +36,13 @@ macro_rules! pass_and_passable {
         }
     };
 }
-#[repr(C)]
-pub struct Value {
-    _private: [u8; 0],
+
+trait __never_trait {
+    type Output;
 }
 
 #[repr(C)]
-pub struct Executable {
+pub struct Value {
     _private: [u8; 0],
 }
 
@@ -69,8 +66,8 @@ primitive_receive!(bool, polyglot_as_boolean, polyglot_is_boolean);
 
 /// Pass is a marker trait that indicates a type can safely be passed to the GraalVM Runtime.
 pub unsafe trait Pass<T>
-where
-    T: Passable,
+    where
+        T: Passable,
 {
     fn pass(&self) -> T;
 }
@@ -87,9 +84,9 @@ pass_and_passable!(i64);
 
 #[derive(Clone, Copy)]
 pub struct JavaArray<T, U>
-where
-    T: Pass<U> + Receive,
-    U: Passable,
+    where
+        T: Pass<U> + Receive,
+        U: Passable,
 {
     ptr: *mut Value,
     phantom: PhantomData<T>,
@@ -97,18 +94,19 @@ where
 }
 
 unsafe impl<T, U> Pass<*mut Value> for JavaArray<T, U>
-where
-    T: Pass<U> + Receive,
-    U: Passable,
+    where
+        T: Pass<U> + Receive,
+        U: Passable,
 {
     fn pass(&self) -> *mut Value {
         self.ptr
     }
 }
+
 unsafe impl<T, U> Receive for JavaArray<T, U>
-where
-    T: Pass<U> + Receive,
-    U: Passable,
+    where
+        T: Pass<U> + Receive,
+        U: Passable,
 {
     fn from_polyglot_value(value: *mut Value) -> Self {
         Self {
@@ -120,9 +118,9 @@ where
 }
 
 impl<T, U> JavaArray<T, U>
-where
-    T: Pass<U> + Receive,
-    U: Passable,
+    where
+        T: Pass<U> + Receive,
+        U: Passable,
 {
     pub fn get(&self, index: u64) -> Option<T> {
         unsafe {
@@ -138,51 +136,25 @@ where
     }
 }
 
-pub mod internal {
-    extern "C" {
-        pub fn polyglot_invoke(
-            value: *mut super::Value,
-            name: *const super::c_char,
-            ...
-        ) -> *mut super::Value;
-        pub fn polyglot_new_instance(value: *const super::Constructor, ...) -> *mut super::Value;
-    }
-
-    pub fn expect_variadic<U: super::Passable, T: super::Pass<U>>(value: T) -> U {
-        value.pass()
-    }
-
-    pub fn make_cstring(string: &str) -> super::CString {
-        super::CString::new(string).expect("Could not convert to CString")
-    }
-
-    pub fn transmute_executable(
-        executable: *const super::Executable,
-    ) -> extern "C" fn(*const super::Value, ...) -> *mut super::Value {
-        unsafe { super::transmute(executable) }
-    }
-
-    pub fn transmute_executable_nullary(
-        executable: *const super::Executable,
-    ) -> extern "C" fn() -> *mut super::Value {
-        unsafe { super::transmute(executable) }
-    }
+pub fn expect_variadic<U: Passable, T: Pass<U>>(value: T) -> U {
+    value.pass()
 }
 
+/// these macros were taken from https://github.com/ruestigraben/ruesti-base/blob/master/src/main/rust/polyglot.rs
 #[macro_export]
 macro_rules! new_instance {
     ($constructor: expr) => {{
         unsafe {
-            $crate::polyglot::internal::polyglot_new_instance(
-                $constructor
-            )
+            $crate::polyglot::polyglot_new_instance(
+                $constructor as *mut _
+            ) as *mut _
         }
     }};
     ($constructor: expr, $($args: expr),*) => {{
         unsafe {
-            $crate::polyglot::internal::polyglot_new_instance(
-                $constructor,
-                $($crate::polyglot::internal::expect_variadic($args)),*
+            $crate::polyglot::polyglot_new_instance(
+                $constructor as *mut _,
+                $($crate::polyglot::expect_variadic($args)),*
             )
         }
     }}
@@ -192,107 +164,33 @@ macro_rules! new_instance {
 macro_rules! invoke_method {
     ($value: expr, $method: expr) => {{
         unsafe {
-            $crate::polyglot::internal::polyglot_invoke(
+            $crate::polyglot::polyglot_invoke(
                 $value,
-                $crate::polyglot::internal::make_cstring($method).as_ptr()
+                $crate::polyglot::make_cstr($method).as_ptr()
             )
         }
     }};
     ($value: expr, $method: expr, $($args: expr),+) => {{
         unsafe {
-            $crate::polyglot::internal::polyglot_invoke(
+            $crate::polyglot::polyglot_invoke(
                 $value,
-                $crate::polyglot::internal::make_cstring($method).as_ptr(),
-                $($crate::polyglot::internal::expect_variadic($args)),*
+                    $crate::polyglot::make_cstr($method).as_ptr(),
+                $($crate::polyglot::expect_variadic($args)),*
             )
         }
     }}
 }
 
-#[macro_export]
-macro_rules! execute {
-    ($executable: expr) => {{
-        let fnptr = $crate::polyglot::internal::transmute_executable_nullary($executable);
-        fnptr()
-    }};
-    ($executable: expr, $($args: expr),+) => {{
-        let fnptr = $crate::polyglot::internal::transmute_executable($executable);
-        fnptr($($crate::polyglot::internal::expect_variadic($args)),+)
-    }};
-}
 
-pub fn from_string(str: &str) -> *mut Value {
-    if str.len() > u64::MAX as usize {
-        panic!("String is too long");
-    }
-    let ptr = str.as_ptr();
-    let charset = "UTF-8\0".as_ptr();
-    let len: u64 = str.len() as u64;
-    unsafe { polyglot_from_string_n(ptr as *const i8, len, charset as *const i8) }
-}
-
-pub fn is_string(value: *const Value) -> bool {
-    unsafe { polyglot_is_string(value) }
-}
-
-pub fn get_string_size(value: *const Value) -> u64 {
-    if !is_string(value) {
-        panic!("Not a string")
-    };
-    unsafe { polyglot_get_string_size(value) }
-}
-
-pub fn as_string(value: *mut Value) -> String {
-    unsafe {
-        let len = get_string_size(value);
-        let buf = CString::new(vec![0; len as usize]).unwrap();
-        let charset = make_cstring("UTF-8");
-        polyglot_as_string(value, buf.as_ptr() as *mut i8, len, charset.as_ptr());
-        buf.into_string().unwrap()
-    }
-}
-
-pub fn is_null(value: *const Value) -> bool {
-    unsafe { polyglot_is_null(value) }
-}
-
-pub fn import(name: &str) -> *mut Value {
-    let c_str = internal::make_cstring(name);
-    let value = unsafe { polyglot_import(c_str.as_ptr()) };
-    if is_null(value) {
-        panic!("Import failed")
-    }
-    value
-}
-
-pub fn export(name: &str, value: *mut Value) {
-    let c_str = internal::make_cstring(name);
-    unsafe { polyglot_export(c_str.as_ptr(), value) }
-}
-
-pub fn as_executable(value: *const Value) -> *const Executable {
-    unsafe {
-        if !polyglot_can_execute(value) {
-            panic!("Value is not executable")
-        }
-        transmute(value)
-    }
+pub fn make_cstr(name: &str) -> CString {
+    CString::new(name).unwrap()
 }
 
 pub fn java_type(name: &str) -> *mut Constructor {
-    let c_str = internal::make_cstring(name);
+    let c_str = make_cstr(name);
     let value = unsafe { polyglot_java_type(c_str.as_ptr()) };
-    if is_null(value) || !unsafe { polyglot_can_instantiate(value) } {
+    if unsafe { polyglot_is_null(value) } || !unsafe { polyglot_can_instantiate(value) } {
         panic!("Not a type")
     }
     unsafe { transmute(value) }
-}
-
-pub fn as_boolean(value: *const Value) -> bool {
-    unsafe {
-        if !polyglot_is_boolean(value) {
-            panic!("Not a boolean")
-        }
-        polyglot_as_boolean(value)
-    }
 }

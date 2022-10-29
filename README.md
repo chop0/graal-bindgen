@@ -40,7 +40,7 @@ Currently, `graal-bindgen` isn't published on crates.io since its build process 
 - [ ] Function and type declaration from Rust
 - [ ] Tests
 ## ArrayList example
-The following example uses nested Java `ArrayList`s, and then uses the `ArrayList#toArray` method to convert it to an Array.
+The following example uses nested Java `java.util.ArrayList`s, and then uses the `ArrayList#toArray` method to convert it to a Polyglot Array.
 ```rust
 use crate::polyglot::*;
 use std::marker::PhantomData;
